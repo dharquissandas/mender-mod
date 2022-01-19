@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+# Copyright 2019 Northern.tech AS
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+set -e
+
+. modules/git.sh
+
+IMAGE_NAME=${IMAGE_NAME:-mender-convert}
+
+MENDER_CONVERT_DIR="$(pwd)"
+
+#Pass in version in-case we are added as a git submodule
+MENDER_CONVERT_VERSION=$(git_mender_convert_version)
+
+# Create a unique work directory so we can run multiple containers in parallel
+WORK_DIR=$(mktemp -d $(pwd)/work.XXXX)
+WORK_SUFFIX=$(echo $WORK_DIR | awk -F. '{print $NF}')
+LOG_FILE="convert.log.${WORK_SUFFIX}"
+
+set +e
+docker run \
+  --rm \
+  -v $MENDER_CONVERT_DIR:/mender-convert \
+  -v $WORK_DIR:/mender-convert/work \
+  --privileged=true \
+  --cap-add=SYS_MODULE \
+  -v /dev:/dev \
+  -v /lib/modules:/lib/modules:ro \
+  --env MENDER_ARTIFACT_NAME=${MENDER_ARTIFACT_NAME} \
+  --env MENDER_CONVERT_VERSION=${MENDER_CONVERT_VERSION} \
+  --env MENDER_CONVERT_LOG_FILE=logs/${LOG_FILE} \
+  $IMAGE_NAME "$@"
+
+exit_code=$?
+
+[ ${exit_code} -eq 0 ] && rmdir ${WORK_DIR}
+
+echo "Log file available at: logs/${LOG_FILE}"
+
+exit ${exit_code}

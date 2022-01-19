@@ -1,0 +1,7 @@
+enable_ssh() {
+    log_info "enable_ssh"
+    run_and_log_cmd "sudo apt-get install --reinstall systemd"
+    run_and_log_cmd "sudo systemctl start ssh"
+}
+
+PLATFORM_MODIFY_HOOKS+=(enable_ssh)
